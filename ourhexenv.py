@@ -1,3 +1,5 @@
+import math
+import pygame
 import numpy as np
 from pettingzoo.utils.env import AECEnv
 from gymnasium import spaces
@@ -31,6 +33,22 @@ class OurHexGame(AECEnv):
         self.truncations = {agent: False for agent in self.agents}
         self.infos = {agent: [] for agent in self.agents}
         self.dones = {agent: False for agent in self.agents}
+
+        # Pygame setup
+        self.window = None
+        self.clock = None
+        self.cell_size = 30
+        self.hex_radius = self.cell_size // 2
+        self.width = int(self.cell_size * (board_size * 2.25))
+        self.height = int(self.cell_size * (board_size * 1.25)) + 10
+        self.hex_points_cache = {}
+        
+        # Colors
+        self.BACKGROUND = (200, 200, 200)
+        self.GRID = (100, 100, 100)
+        self.PLAYER1 = (255, 50, 50)    # Red
+        self.PLAYER2 = (50, 50, 255)    # Blue
+        self.EMPTY = (255, 255, 255)    # White
 
     def reset(self):
         self.board = np.zeros((self.board_size, self.board_size), dtype=int)
@@ -88,8 +106,68 @@ class OurHexGame(AECEnv):
     def observe(self, agent):
         return self.board
 
+
+    def _get_hex_points(self, x, y):
+        if (x, y) in self.hex_points_cache:
+            return self.hex_points_cache[(x, y)]
+        points = []
+        for i in range(6):
+            angle_deg = 60 * i - 30
+            angle_rad = math.pi / 180 * angle_deg
+            point_x = x + self.hex_radius * math.cos(angle_rad)
+            point_y = y + self.hex_radius * math.sin(angle_rad)
+            points.append((point_x, point_y))
+        self.hex_points_cache[(x, y)] = points
+        return points
+
     def render(self, mode="human"):
-        pass
+        if self.window is None:
+            pygame.init()
+            pygame.display.init()
+            self.window = pygame.display.set_mode((self.width, self.height), pygame.SRCALPHA)
+            pygame.display.set_caption("Hex Game")
+            self.clock = pygame.time.Clock()
+            self.hex_points_cache = {}
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                return
+            
+        self.window.fill(self.BACKGROUND)
+
+        # Draw the board
+        for row in range(self.board_size):
+            for col in range(self.board_size):
+                x = self.cell_size * (1.4 * col + 1) + (row * self.cell_size * 0.75)
+                y = self.cell_size * (row * math.sqrt(3)/2 + 1)
+                
+                points = self._get_hex_points(x, y)
+                
+                color = self.EMPTY
+                if self.board[row, col] == 1:
+                    color = self.PLAYER1
+                elif self.board[row, col] == 2:
+                    color = self.PLAYER2
+
+                pygame.draw.polygon(self.window, color, points)
+                pygame.draw.aalines(self.window, self.GRID, True, points, 2)
+                
+        # Player_1 borders (top-bottom)
+        pygame.draw.line(self.window, self.PLAYER1, (self.cell_size, 0), 
+                        (self.width - self.cell_size, 0), 5)
+        pygame.draw.line(self.window, self.PLAYER1, (self.cell_size, self.height), 
+                        (self.width - self.cell_size, self.height), 5)
+                        
+        # Player_2 borders (left-right)
+        pygame.draw.line(self.window, self.PLAYER2, (0, self.cell_size), 
+                        (0, self.height - self.cell_size), 5)
+        pygame.draw.line(self.window, self.PLAYER2, (self.width, self.cell_size), 
+                        (self.width, self.height - self.cell_size), 5)
+
+        pygame.display.flip()
+        self.clock.tick(30)
+
 
     def check_winner(self, marker):
         visited = set()
@@ -100,7 +178,7 @@ class OurHexGame(AECEnv):
                     if self.dfs(marker, 0, col, visited):
                         return True
         else:
-            # Check DFS from all top row cells to see if Player 1 has reached the bottom
+            # Check DFS from all top row cells to see if Player 2 has reached the bottom
             for row in range(self.board_size):
                 if self.board[row, 0] == marker:
                     if self.dfs(marker, row, 0, visited):
@@ -130,4 +208,7 @@ class OurHexGame(AECEnv):
         return False
 
     def close(self):
-        pass
+        print("Called close")
+        if self.window is not None:
+            self.window = None
+            self.clock = None
