@@ -12,6 +12,7 @@ class OurHexGame(AECEnv):
     def __init__(self, board_size=5):
         super().__init__()
         self.board_size = board_size
+        self.isFirst = True
         self.agents = ["player_1", "player_2"]
         self.agent_selector = agent_selector(self.agents)
         self.agent_selection = self.agent_selector.next()
@@ -52,6 +53,8 @@ class OurHexGame(AECEnv):
 
     def reset(self):
         self.board = np.zeros((self.board_size, self.board_size), dtype=int)
+        self.isFirst = True
+        self.action_space = spaces.Discrete(self.board_size * self.board_size + 1)
         self.is_pie_rule_usable = False
         self.agent_selection = "player_1"
         self.dones = {agent: False for agent in self.agents}
@@ -93,7 +96,7 @@ class OurHexGame(AECEnv):
             else:
                 self.rewards = {agent: -1 for agent in self.agents}
                 self.terminations = {agent: False for agent in self.agents}
-
+        
         if self.agent_selection == "player_2":
             # Pie rule should only be usable on the first move of Player 2
             self.is_pie_rule_usable = True
@@ -101,7 +104,16 @@ class OurHexGame(AECEnv):
         for agent in self.agents:
             self._cumulative_rewards[agent] += self.rewards[agent]
 
+        if self.isFirst == True and self.agent_selector.is_last():
+            self.isFirst = False
+            self.update_action_space()
+
         self.agent_selection = self.agent_selector.next()
+    
+    def update_action_space(self):
+        if not self.isFirst:
+            self.action_space = spaces.Discrete(self.board_size * self.board_size)
+            self.action_spaces = {agent: self.action_space for agent in self.agents}
 
     def observe(self, agent):
         return self.board
