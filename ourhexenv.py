@@ -57,14 +57,23 @@ class OurHexGame(AECEnv):
 
     def reset(self):
         self.board = np.zeros((self.board_size, self.board_size), dtype=int)
+        
+        self.is_first = True
         self.is_pie_rule_usable = False
         self.agent_selection = "player_1"
+
         self.dones = {agent: False for agent in self.agents}
         self.infos = {agent: [] for agent in self.agents}
-
         self._cumulative_rewards = {agent: 0 for agent in self.agents}
         self.terminations = {agent: False for agent in self.agents}
         self.truncations = {agent: False for agent in self.agents}
+        self.rewards = {agent: 0 for agent in self.agents}
+
+        
+        if self.window:
+            self.window.fill(self.BACKGROUND)
+            pygame.display.flip()
+        
 
     def step(self, action):
         # Handle pie rule
