@@ -76,7 +76,6 @@ class OurHexGame(AECEnv):
             self.window.fill(self.BACKGROUND)
             pygame.display.flip()
         
-        return {agent: self.observe(agent) for agent in self.agents}, {}
 
     def step(self, action):
         # Handle pie rule
