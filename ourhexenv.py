@@ -23,9 +23,13 @@ class OurHexGame(AECEnv):
         self.action_spaces = {agent: self.action_space for agent in self.agents}
 
         self.observation_spaces = {
-            agent: spaces.Box(
-                low=0, high=2, shape=(self.board_size, self.board_size), dtype=np.int8
-            )
+            agent: spaces.Dict({
+                "observation": spaces.Box(low=0,
+                                          high=2,
+                                          shape=(self.board_size, self.board_size),
+                                          dtype=np.int8),
+                "pie_rule_used": spaces.Discrete(2), # 1 if used, 0 otherwise
+            })
             for agent in self.agents
         }
 
