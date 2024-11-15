@@ -10,10 +10,19 @@ We are going to create a common Hex Game environment ```OurHexGame``` for our PA
 - “player_2”: blue, horizontal
 
 ## Observation 
-- Dict {
-  - Box(board_size, board_size)
-  - Discrete(1) # pie rule used if 1 else 0}
-- Values - 0: empty, 1: player_1, 2: player_2
+```python
+from gymnasium.spaces import Dict, Box, Discrete
+
+Dict({
+  "observation": spaces.Box(board_size, board_size),
+  "pie_rule_used": spaces.Discrete(2), # 1 if used, 0 otherwise
+})
+```
+
+- Observation Values (cell values):
+  - empty: 0
+  - player_1: 1
+  - player_2: 2
 - Use the cell ID based on the first image on https://en.wikipedia.org/wiki/Hex_(board_game) (e.g., 1A, 1B, ...)
 
 ## Info
