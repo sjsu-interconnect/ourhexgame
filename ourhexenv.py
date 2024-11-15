@@ -58,7 +58,7 @@ class OurHexGame(AECEnv):
     def reset(self):
         self.board = np.zeros((self.board_size, self.board_size), dtype=int)
         
-        self.isFirst = True
+        self.is_first = True
         self.is_pie_rule_usable = False
         self.agent_selection = "player_1"
 
@@ -69,8 +69,6 @@ class OurHexGame(AECEnv):
         self.truncations = {agent: False for agent in self.agents}
         self.rewards = {agent: 0 for agent in self.agents}
 
-        self.action_space = spaces.Discrete(self.board_size * self.board_size + 1)
-        self.action_spaces = {agent: self.action_space for agent in self.agents}
         
         if self.window:
             self.window.fill(self.BACKGROUND)
