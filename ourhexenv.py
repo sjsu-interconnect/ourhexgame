@@ -9,9 +9,10 @@ from pettingzoo.utils import agent_selector
 class OurHexGame(AECEnv):
     metadata = {"render.modes": ["human"]}
 
-    def __init__(self, board_size=5):
+    def __init__(self, board_size=5, sparse_flag=True):
         super().__init__()
         self.board_size = board_size
+        self.sparse_flag = sparse_flag
         self.agents = ["player_1", "player_2"]
         self.agent_selector = agent_selector(self.agents)
         self.agent_selection = self.agent_selector.next()
