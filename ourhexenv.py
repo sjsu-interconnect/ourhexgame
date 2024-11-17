@@ -1,4 +1,6 @@
 import math
+from operator import index
+
 import pygame
 import numpy as np
 from pettingzoo.utils.env import AECEnv
@@ -119,6 +121,36 @@ class OurHexGame(AECEnv):
 
     def observe(self, agent):
         return self.board
+
+    def generate_info(self):
+        """
+        Generates the info based on the agent that is currently chosen by the agent_selector.
+        :return: None, info is available in the self.infos dict, and should be returned as part of the last or step function tuple.
+        """
+        agent = self.agent_selection
+
+        # since we determined that player_1 is always going to be red, and vice versa for player_2, we can use the
+        # index to tell if the agent is horizontal(0) or vertical (1).
+        direction = self.agents.index(agent)
+
+        action_mask_size = 122 # 122 because board size = 11 ** 2 = 121 + 1 = 122 for pie rule.
+        board_size = self.board_size # declare local variable for ease of writing.
+        action_mask = [0] * action_mask_size
+
+        for slot in range(action_mask_size-1): # -1 to only iterate through board.
+            row, col = divmod(slot, board_size)
+            if self.board[row, col] == 0:
+                action_mask[slot] = 1
+
+        # the last item in the action mask is the pie rule, and since we aren't recording how many turns were played,
+        # we can just find the sum of the action mask, and check if it is equal to the number of slots on  the board - 1
+        # (only one chip placed, in other words, second turn), and to be sure, check that it is the second player's turn.
+        action_mask[-1] = 1 if np.sum(action_mask) == (board_size ** 2) - 1 and direction == 1 else 0
+
+        self.infos[agent] = {
+            'direction': direction,
+            'action_mask': action_mask,
+        }
 
 
     def _get_hex_points(self, x, y):
