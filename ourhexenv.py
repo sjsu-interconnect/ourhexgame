@@ -194,6 +194,7 @@ class OurHexGame(AECEnv):
             self.place_piece(row, col, marker)
 
             if self.check_winner(marker):
+                self.terminations = {agent: True for agent in self.agents}
                 win_r, lose_r = self.reward_mapping["WIN"], self.reward_mapping["LOSE"]
                 self.rewards = {
                     agent: win_r if agent == self.agent_selection else lose_r
