@@ -4,7 +4,76 @@ import numpy as np
 from pettingzoo.utils.env import AECEnv
 from gymnasium import spaces
 from pettingzoo.utils import agent_selector
-from UnionFind import UnionFind
+
+
+class UnionFind:
+    """
+    A Union-Find (Disjoint-Set) data structure that supports efficient operations
+    to find the root of a set and unite two sets. This implementation includes
+    path compression and rank optimization to keep the tree structures shallow.
+
+    Attributes:
+        parent (List[int]): Parent list where parent[i] is the parent of element i.
+                            If parent[i] == i, then i is the root of its set.
+        rank (List[int]): Rank list to track the depth of the tree rooted at each element.
+    """
+
+    def __init__(self, n):
+        """
+        Initializes the Union-Find data structure with `n` elements.
+
+        Each element is initially its own parent, representing `n` individual sets.
+        The rank of all elements is initialized to 0.
+
+        Args:
+            n (int): The number of elements in the set, indexed from 0 to n-1.
+        """
+        self.parent = list(range(n))
+        self.rank = [0] * n
+
+    def find(self, x):
+        """
+        Finds the root of the set containing the element `x` with path compression.
+
+        Path compression ensures that all elements on the path from `x` to the root
+        point directly to the root, optimizing future operations.
+
+        Args:
+            x (int): The element whose set root is to be found.
+
+        Returns:
+            int: The root of the set containing `x`.
+        """
+        if self.parent[x] != x:
+            self.parent[x] = self.find(self.parent[x])  # Path compression
+        return self.parent[x]
+
+    def union(self, x, y):
+        """
+        Unites the sets containing elements `x` and `y` using rank optimization.
+
+        The root of one set becomes the parent of the root of the other set based
+        on the rank of the roots. This helps keep the tree structures shallow.
+
+        Args:
+            x (int): An element in the first set.
+            y (int): An element in the second set.
+
+        Returns:
+            None
+        """
+        rootX = self.find(x)
+        rootY = self.find(y)
+
+        if rootX != rootY:
+            # Union by rank
+            if self.rank[rootX] > self.rank[rootY]:
+                self.parent[rootY] = rootX
+            elif self.rank[rootX] < self.rank[rootY]:
+                self.parent[rootX] = rootY
+            else:
+                self.parent[rootY] = rootX
+                self.rank[rootX] += 1
 
 
 class OurHexGame(AECEnv):
@@ -77,6 +146,7 @@ class OurHexGame(AECEnv):
         self.truncations = {agent: False for agent in self.agents}
         self.rewards = {agent: 0 for agent in self.agents}
 
+        self.uf = UnionFind(self.board_size * self.board_size + 4)
         
         if self.window:
             self.window.fill(self.BACKGROUND)
@@ -232,44 +302,6 @@ class OurHexGame(AECEnv):
         pygame.display.flip()
         self.clock.tick(30)
 
-
-    # def check_winner(self, marker):
-    #     visited = set()
-    #     if marker == 1:
-    #         # Check DFS from all top row cells to see if Player 1 has reached the bottom
-    #         for col in range(self.board_size):
-    #             if self.board[0, col] == marker:
-    #                 if self.dfs(marker, 0, col, visited):
-    #                     return True
-    #     else:
-    #         # Check DFS from all top row cells to see if Player 2 has reached the bottom
-    #         for row in range(self.board_size):
-    #             if self.board[row, 0] == marker:
-    #                 if self.dfs(marker, row, 0, visited):
-    #                     return True
-    #     return False
-    #
-    # def dfs(self, marker, row, col, visited):
-    #     if marker == 1 and row == self.board_size - 1:  # Player 1 reached bottom
-    #         return True
-    #     if marker == 2 and col == self.board_size - 1:  # Player 2 reached right side
-    #         return True
-    #
-    #     directions = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, 1), (1, -1)]
-    #     visited.add((row, col))
-    #
-    #     for dr, dc in directions:
-    #         new_row, new_col = row + dr, col + dc
-    #         if (
-    #             0 <= new_row < self.board_size
-    #             and 0 <= new_col < self.board_size
-    #             and (new_row, new_col) not in visited
-    #             and self.board[new_row, new_col] == marker
-    #         ):
-    #             if self.dfs(marker, new_row, new_col, visited):
-    #                 return True
-    #
-    #     return False
 
     def close(self):
         print("Called close")
