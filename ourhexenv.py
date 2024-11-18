@@ -255,7 +255,10 @@ class OurHexGame(AECEnv):
 
 
     def observe(self, agent):
-        return self.board
+        return {
+            "observation": self.board,
+            "pie_rule_used": 1 if self.is_pie_rule_usable else 0
+        }
 
 
     def _get_hex_points(self, x, y):
