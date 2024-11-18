@@ -88,6 +88,9 @@ class OurHexGame(AECEnv):
                 }
 
     def step(self, action):
+        #Check if the action is within the valid range.
+        if action not in range(self.action_space.n):
+            raise ValueError("Illegal move: Action is out of bounds.")
         # Handle pie rule
         if action == self.board_size * self.board_size:
             if self.agent_selection == "player_1":
@@ -118,9 +121,10 @@ class OurHexGame(AECEnv):
                 self.terminations = {agent: True for agent in self.agents}
             else:
                 if not self.sparse_flag:
-                    self.rewards = {agent: -1 for agent in self.agents} 
+                    self.rewards = {agent: -1 for agent in self.agents}
+                    self.rewards[self.agent_selection] = -1
 
-        
+
         if self.agent_selection == "player_2":
             # Player 2 has made their first move, make pie rule unusable
             self.is_pie_rule_usable = False
@@ -128,7 +132,10 @@ class OurHexGame(AECEnv):
         for agent in self.agents:
             self._cumulative_rewards[agent] += self.rewards[agent]
 
-        self.agent_selection = self.agent_selector.next()
+        #Advance to the next agent if the game is not over
+        if not any(self.terminations.values()):
+            self.agent_selection = self.agent_selector.next()
+
 
     def observe(self, agent):
         return self.board
