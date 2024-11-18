@@ -154,8 +154,9 @@ class OurHexGame(AECEnv):
         self.board = np.zeros((self.board_size, self.board_size), dtype=int)
         
         self.is_first = True
-        self.is_pie_rule_usable = True
+        
         self.agent_selection = "player_1"
+       
 
         self.dones = {agent: False for agent in self.agents}
         self.infos = {agent: [] for agent in self.agents}
@@ -171,25 +172,31 @@ class OurHexGame(AECEnv):
             pygame.display.flip()
 
     def step(self, action):
-        #Check if the action is within the valid range.
+    # Check if the action is within the valid range
         if action not in range(self.action_space.n):
             raise ValueError("Illegal move: Action is out of bounds.")
-        # Handle pie rule
+
+        # Handle pie rule (only Player 2 can use it in the first round)
         if action == self.board_size * self.board_size:
             if self.agent_selection == "player_1":
                 raise ValueError("Illegal move: Pie rule can only be used by Player 2.")
             if not self.is_pie_rule_usable:
                 raise ValueError("Illegal move: Pie rule can only be used once.")
+            if np.sum(self.board == 1) == 0:
+                raise ValueError("Illegal move: Pie rule cannot be used before Player 1's move.")
 
-            # Use pie rule, if a (row,col) was 1, make it 0 and make (col,row) 1
+            # Flip the board state 
             x, y = np.where(self.board == 1)
             row, col = x[0], y[0]
             self.board[row][col] = 0
             self.board[col][row] = 2
-        else:
-            row, col = divmod(action, self.board_size)
 
-            # Ensure the chosen spot is empty
+            # Update flags
+            self.pie_rule_used = True
+            self.is_pie_rule_usable = False
+        else:
+            # Regular move
+            row, col = divmod(action, self.board_size)
             if self.board[row, col] != 0:
                 raise ValueError("Illegal move: Cell already occupied.")
 
@@ -208,14 +215,41 @@ class OurHexGame(AECEnv):
                 self.rewards = {agent: move_r for agent in self.agents}
                 self.terminations = {agent: False for agent in self.agents}
 
-        if self.agent_selection == "player_2":
-            # Player 2 has made their first move, make pie rule unusable
-            self.is_pie_rule_usable = False
-
+        # Update cumulative rewards
         for agent in self.agents:
             self._cumulative_rewards[agent] += self.rewards[agent]
 
-        #Advance to the next agent if the game is not over
+        # Prepare observation space
+        if self.pie_rule_used:
+            # Flipping the observation space if the pie rule was used
+            flipped_board = np.where(self.board == 1, 2, np.where(self.board == 2, 1, 0))
+            self.infos = {
+                "player_1": {
+                    "observation": self.board,
+                    "pie_rule_used": 0,
+                },
+                "player_2": {
+                    "observation": flipped_board,
+                    "pie_rule_used": 0,
+                },
+            }
+        else:
+            self.infos = {
+                "player_1": {
+                    "observation": self.board,
+                    "pie_rule_used": 1 if self.is_pie_rule_usable else 0,
+                },
+                "player_2": {
+                    "observation": self.board,
+                    "pie_rule_used": 1 if self.is_pie_rule_usable else 0,
+                },
+            }
+
+        # Disabling pie rule after round one (irrespective of whether it was used or not)
+        if self.agent_selection == "player_2":
+            self.is_pie_rule_usable = False
+
+        # Advance to the next agent if the game is not over
         if not any(self.terminations.values()):
             self.agent_selection = self.agent_selector.next()
 
