@@ -279,19 +279,16 @@ class OurHexGame(AECEnv):
         # index to tell if the agent is horizontal(0) or vertical (1).
         direction = self.agents.index(agent)
 
-        action_mask_size = 122 # 122 because board size = 11 ** 2 = 121 + 1 = 122 for pie rule.
-        board_size = self.board_size # declare local variable for ease of writing.
-        action_mask = [0] * action_mask_size
-
-        for slot in range(action_mask_size-1): # -1 to only iterate through board.
-            row, col = divmod(slot, board_size)
-            if self.board[row, col] == 0:
-                action_mask[slot] = 1
+        action_mask = np.zeros(self.board_size * self.board_size + 1,
+                               dtype=np.int8)  # +1 for pie rule
+        for action in range(self.board_size * self.board_size):
+            row, col = divmod(action, self.board_size)
+            action_mask[action] = 1 if self.board[row, col] == 0 else 0
 
         # the last item in the action mask is the pie rule, and since we aren't recording how many turns were played,
         # we can just find the sum of the action mask, and check if it is equal to the number of slots on  the board - 1
         # (only one chip placed, in other words, second turn), and to be sure, check that it is the second player's turn.
-        action_mask[-1] = 1 if np.sum(action_mask) == (board_size ** 2) - 1 and direction == 1 else 0
+        action_mask[-1] = 1 if np.sum(action_mask) == (self.board_size ** 2) - 1 and direction == 1 else 0
 
         self.infos[agent] = {
             'direction': direction,
