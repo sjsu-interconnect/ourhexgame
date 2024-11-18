@@ -4,6 +4,7 @@ import numpy as np
 from pettingzoo.utils.env import AECEnv
 from gymnasium import spaces
 from pettingzoo.utils import agent_selector
+from UnionFind import UnionFind
 
 
 class OurHexGame(AECEnv):
@@ -55,6 +56,13 @@ class OurHexGame(AECEnv):
         self.PLAYER2 = (50, 50, 255)    # Blue
         self.EMPTY = (255, 255, 255)    # White
 
+        # Union Find Check Winner Setup
+        self.uf = UnionFind(board_size * board_size + 4)  # Extra 4 for virtual nodes
+        self.top_virtual = board_size * board_size        # player_1 owns top + bottom nodes
+        self.bottom_virtual = self.top_virtual + 1
+        self.left_virtual = self.top_virtual + 2          # player_2 owns left + right nodes
+        self.right_virtual = self.top_virtual + 3
+
     def reset(self):
         self.board = np.zeros((self.board_size, self.board_size), dtype=int)
         
@@ -96,7 +104,7 @@ class OurHexGame(AECEnv):
                 raise ValueError("Illegal move: Cell already occupied.")
 
             marker = 1 if self.agent_selection == "player_1" else 2
-            self.board[row, col] = marker
+            self.place_piece(row, col, marker)
 
             if self.check_winner(marker):
                 self.terminations = {agent: True for agent in self.agents}
@@ -116,6 +124,48 @@ class OurHexGame(AECEnv):
             self._cumulative_rewards[agent] += self.rewards[agent]
 
         self.agent_selection = self.agent_selector.next()
+
+
+    def place_piece(self, row, col, marker):
+        """
+        Record the player's turn by marking their selected tile.
+        Maintain the 'Union Find Check Winner Stucture'.
+        """
+        pos = row * self.board_size + col
+
+        # Connect to adjacent cells
+        directions = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, 1), (1, -1)]
+        for dr, dc in directions:
+            r, c = row + dr, col + dc
+            if 0 <= r < self.board_size and 0 <= c < self.board_size and self.board[r][c] == marker:
+                self.uf.union(pos, r * self.board_size + c)
+
+        # Connect to virtual nodes if on border
+        if marker == 1:  # First player connects top-bottom
+            if row == 0:
+                self.uf.union(pos, self.top_virtual)
+            if row == self.board_size - 1:
+                self.uf.union(pos, self.bottom_virtual)
+        elif marker == 2:  # Second player connects left-right
+            if col == 0:
+                self.uf.union(pos, self.left_virtual)
+            if col == self.board_size - 1:
+                self.uf.union(pos, self.right_virtual)
+
+        self.board[row, col] = marker
+
+
+    def check_winner(self, player):
+        """
+        Check whether a certain player has won the game
+        Verify whether virtual nodes on opposite sides of the board now belong to the same set.
+        """
+        if player == 1:  # First player
+            return self.uf.find(self.top_virtual) == self.uf.find(self.bottom_virtual)
+        elif player == 2:  # Second player
+            return self.uf.find(self.left_virtual) == self.uf.find(self.right_virtual)
+        return False
+
 
     def observe(self, agent):
         return self.board
@@ -183,43 +233,43 @@ class OurHexGame(AECEnv):
         self.clock.tick(30)
 
 
-    def check_winner(self, marker):
-        visited = set()
-        if marker == 1:
-            # Check DFS from all top row cells to see if Player 1 has reached the bottom
-            for col in range(self.board_size):
-                if self.board[0, col] == marker:
-                    if self.dfs(marker, 0, col, visited):
-                        return True
-        else:
-            # Check DFS from all top row cells to see if Player 2 has reached the bottom
-            for row in range(self.board_size):
-                if self.board[row, 0] == marker:
-                    if self.dfs(marker, row, 0, visited):
-                        return True
-        return False
-
-    def dfs(self, marker, row, col, visited):
-        if marker == 1 and row == self.board_size - 1:  # Player 1 reached bottom
-            return True
-        if marker == 2 and col == self.board_size - 1:  # Player 2 reached right side
-            return True
-
-        directions = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, 1), (1, -1)]
-        visited.add((row, col))
-
-        for dr, dc in directions:
-            new_row, new_col = row + dr, col + dc
-            if (
-                0 <= new_row < self.board_size
-                and 0 <= new_col < self.board_size
-                and (new_row, new_col) not in visited
-                and self.board[new_row, new_col] == marker
-            ):
-                if self.dfs(marker, new_row, new_col, visited):
-                    return True
-
-        return False
+    # def check_winner(self, marker):
+    #     visited = set()
+    #     if marker == 1:
+    #         # Check DFS from all top row cells to see if Player 1 has reached the bottom
+    #         for col in range(self.board_size):
+    #             if self.board[0, col] == marker:
+    #                 if self.dfs(marker, 0, col, visited):
+    #                     return True
+    #     else:
+    #         # Check DFS from all top row cells to see if Player 2 has reached the bottom
+    #         for row in range(self.board_size):
+    #             if self.board[row, 0] == marker:
+    #                 if self.dfs(marker, row, 0, visited):
+    #                     return True
+    #     return False
+    #
+    # def dfs(self, marker, row, col, visited):
+    #     if marker == 1 and row == self.board_size - 1:  # Player 1 reached bottom
+    #         return True
+    #     if marker == 2 and col == self.board_size - 1:  # Player 2 reached right side
+    #         return True
+    #
+    #     directions = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, 1), (1, -1)]
+    #     visited.add((row, col))
+    #
+    #     for dr, dc in directions:
+    #         new_row, new_col = row + dr, col + dc
+    #         if (
+    #             0 <= new_row < self.board_size
+    #             and 0 <= new_col < self.board_size
+    #             and (new_row, new_col) not in visited
+    #             and self.board[new_row, new_col] == marker
+    #         ):
+    #             if self.dfs(marker, new_row, new_col, visited):
+    #                 return True
+    #
+    #     return False
 
     def close(self):
         print("Called close")
