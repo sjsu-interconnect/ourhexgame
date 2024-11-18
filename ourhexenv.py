@@ -93,8 +93,8 @@ class OurHexGame(AECEnv):
             }
         else:
             self.reward_mapping: Dict[str, int] = {
-                "WIN": (self.board_size*self.board_size)//2,
-                "LOSE": -10,
+                "WIN": math.floor((board_size * board_size)/2),
+                "LOSE": math.ceil((board_size * board_size)/2),
                 "MOVE": -1
             }
 
