@@ -104,7 +104,8 @@ class OurHexGame(AECEnv):
         self.agents = ["player_1", "player_2"]
         self.agent_selector = agent_selector(self.agents)
         self.agent_selection = self.agent_selector.next()
-        self.is_pie_rule_usable = True
+        self.is_pie_rule_usable = True # Tracks whether the pie rule is available for a user
+        self.is_pie_rule_used = False # Tracks wheteher the pie rule has been activated by pie rule 2
         self.board = np.zeros((self.board_size, self.board_size), dtype=int)
 
         self.action_space = spaces.Discrete(self.board_size * self.board_size + 1)
@@ -155,6 +156,7 @@ class OurHexGame(AECEnv):
         
         self.is_first = True
         self.is_pie_rule_usable = True
+        self.is_pie_rule_used = False
         self.agent_selection = "player_1"
 
         self.dones = {agent: False for agent in self.agents}
@@ -182,6 +184,7 @@ class OurHexGame(AECEnv):
                 raise ValueError("Illegal move: Pie rule can only be used once.")
 
             # Use pie rule, if a (row,col) was 1, make it 0 and make (col,row) 1
+            self.is_pie_rule_used = True
             x, y = np.where(self.board == 1)
             row, col = x[0], y[0]
             self.board[row][col] = 0
@@ -265,7 +268,7 @@ class OurHexGame(AECEnv):
     def observe(self, agent):
         return {
             "observation": self.board,
-            "pie_rule_used": 1 if self.is_pie_rule_usable else 0
+            "pie_rule_used": 1 if self.is_pie_rule_used else 0
         }
 
     def generate_info(self):
