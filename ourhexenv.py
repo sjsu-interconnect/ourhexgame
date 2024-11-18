@@ -101,7 +101,7 @@ class OurHexGame(AECEnv):
         self.agents = ["player_1", "player_2"]
         self.agent_selector = agent_selector(self.agents)
         self.agent_selection = self.agent_selector.next()
-        self.is_pie_rule_usable = False
+        self.is_pie_rule_usable = True
         self.board = np.zeros((self.board_size, self.board_size), dtype=int)
 
         self.action_space = spaces.Discrete(self.board_size * self.board_size + 1)
@@ -151,7 +151,7 @@ class OurHexGame(AECEnv):
         self.board = np.zeros((self.board_size, self.board_size), dtype=int)
         
         self.is_first = True
-        self.is_pie_rule_usable = False
+        self.is_pie_rule_usable = True
         self.agent_selection = "player_1"
 
         self.dones = {agent: False for agent in self.agents}
@@ -166,9 +166,11 @@ class OurHexGame(AECEnv):
         if self.window:
             self.window.fill(self.BACKGROUND)
             pygame.display.flip()
-        
 
     def step(self, action):
+        #Check if the action is within the valid range.
+        if action not in range(self.action_space.n):
+            raise ValueError("Illegal move: Action is out of bounds.")
         # Handle pie rule
         if action == self.board_size * self.board_size:
             if self.agent_selection == "player_1":
@@ -176,11 +178,11 @@ class OurHexGame(AECEnv):
             if not self.is_pie_rule_usable:
                 raise ValueError("Illegal move: Pie rule can only be used once.")
 
-            self.is_pie_rule_usable = True
-
-            self.board = np.where(self.board == 1, 3, self.board)
-            self.board = np.where(self.board == 2, 1, self.board)
-            self.board = np.where(self.board == 3, 2, self.board)
+            # Use pie rule, if a (row,col) was 1, make it 0 and make (col,row) 1
+            x, y = np.where(self.board == 1)
+            row, col = x[0], y[0]
+            self.board[row][col] = 0
+            self.board[col][row] = 2
         else:
             row, col = divmod(action, self.board_size)
 
@@ -204,13 +206,16 @@ class OurHexGame(AECEnv):
                 self.terminations = {agent: False for agent in self.agents}
 
         if self.agent_selection == "player_2":
-            # Pie rule should only be usable on the first move of Player 2
-            self.is_pie_rule_usable = True
+            # Player 2 has made their first move, make pie rule unusable
+            self.is_pie_rule_usable = False
 
         for agent in self.agents:
             self._cumulative_rewards[agent] += self.rewards[agent]
 
-        self.agent_selection = self.agent_selector.next()
+        #Advance to the next agent if the game is not over
+        if not any(self.terminations.values()):
+            self.agent_selection = self.agent_selector.next()
+
 
 
     def place_piece(self, row, col, marker):
