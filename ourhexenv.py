@@ -92,8 +92,11 @@ class OurHexGame(AECEnv):
                 "MOVE": 0
             }
         else:
-            # TODO: Implement as part of https://github.com/sjsu-interconnect/ourhexgame/issues/6
-            self.reward_mapping: Dict[str, int] = {}
+            self.reward_mapping: Dict[str, int] = {
+                "WIN": (self.board_size*self.board_size)//2,
+                "LOSE": -10,
+                "MOVE": -1
+            }
 
         self.agents = ["player_1", "player_2"]
         self.agent_selector = agent_selector(self.agents)
