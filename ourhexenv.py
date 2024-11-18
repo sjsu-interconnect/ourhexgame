@@ -1,6 +1,7 @@
 import math
 import pygame
 import numpy as np
+from typing import Dict
 from pettingzoo.utils.env import AECEnv
 from gymnasium import spaces
 from pettingzoo.utils import agent_selector
@@ -13,6 +14,17 @@ class OurHexGame(AECEnv):
         super().__init__()
         self.board_size = board_size
         self.sparse_flag = sparse_flag
+        # Initialize reward mapping. Always three keys: WIN, LOSE, MOVE
+        if self.sparse_flag:
+            self.reward_mapping: Dict[str, int] = {
+                "WIN": 1,
+                "LOSE": -1,
+                "MOVE": 0
+            }
+        else:
+            # TODO: Implement as part of https://github.com/sjsu-interconnect/ourhexgame/issues/6
+            self.reward_mapping: Dict[str, int] = {}
+
         self.agents = ["player_1", "player_2"]
         self.agent_selector = agent_selector(self.agents)
         self.agent_selection = self.agent_selector.next()
@@ -100,12 +112,14 @@ class OurHexGame(AECEnv):
 
             if self.check_winner(marker):
                 self.terminations = {agent: True for agent in self.agents}
+                win_r, lose_r = self.reward_mapping["WIN"], self.reward_mapping["LOSE"]
                 self.rewards = {
-                    agent: 10 if agent == self.agent_selection else -10
+                    agent: win_r if agent == self.agent_selection else lose_r
                     for agent in self.agents
                 }
             else:
-                self.rewards = {agent: -1 for agent in self.agents}
+                move_r = self.reward_mapping["MOVE"]
+                self.rewards = {agent: move_r for agent in self.agents}
                 self.terminations = {agent: False for agent in self.agents}
 
         if self.agent_selection == "player_2":
