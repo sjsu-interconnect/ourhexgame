@@ -101,22 +101,25 @@ class OurHexGame(AECEnv):
                 "MOVE": -1
             }
 
-        self.agents = ["player_1", "player_2"]
+        self.possible_agents = ["player_1", "player_2"]
+        self.agents = self.possible_agents[:]
         self.agent_selector = agent_selector(self.agents)
         self.agent_selection = self.agent_selector.next()
         self.is_pie_rule_usable = True # Tracks whether the pie rule is available for a user
         self.is_pie_rule_used = False # Tracks wheteher the pie rule has been activated by pie rule 2
         self.board = np.zeros((self.board_size, self.board_size), dtype=int)
 
-        self.action_space = spaces.Discrete(self.board_size * self.board_size + 1)
-        self.action_spaces = {agent: self.action_space for agent in self.agents}
+
+        # Pettingzoo requires that each space is a unique object, so we need to create a new space for each agent
+        self.action_spaces = {agent: spaces.Discrete(self.board_size * self.board_size + 1) for agent in self.agents}
+        self.all_actions = list(range(self.board_size * self.board_size + 1))
 
         self.observation_spaces = {
             agent: spaces.Dict({
                 "observation": spaces.Box(low=0,
                                           high=2,
                                           shape=(self.board_size, self.board_size),
-                                          dtype=np.int8),
+                                          dtype=int),
                 "pie_rule_used": spaces.Discrete(2), # 1 if used, 0 otherwise
             })
             for agent in self.agents
@@ -125,7 +128,7 @@ class OurHexGame(AECEnv):
         self._cumulative_rewards = {agent: 0 for agent in self.agents}
         self.terminations = {agent: False for agent in self.agents}
         self.truncations = {agent: False for agent in self.agents}
-        self.infos = {agent: [] for agent in self.agents}
+        self.infos = {agent: self.generate_info(agent) for agent in self.agents}
         self.dones = {agent: False for agent in self.agents}
 
         # Pygame setup
@@ -151,8 +154,9 @@ class OurHexGame(AECEnv):
         self.left_virtual = self.top_virtual + 2          # player_2 owns left + right nodes
         self.right_virtual = self.top_virtual + 3
 
-    def reset(self):
+    def reset(self, seed: int = None, options: dict = {}):
         self.board = np.zeros((self.board_size, self.board_size), dtype=int)
+        self.agents = self.possible_agents[:]
         
         self.is_first = True
         self.is_pie_rule_usable = True
@@ -160,21 +164,33 @@ class OurHexGame(AECEnv):
         self.agent_selection = "player_1"
 
         self.dones = {agent: False for agent in self.agents}
-        self.infos = {agent: [] for agent in self.agents}
+        self.infos = {agent: self.generate_info(agent) for agent in self.agents}
         self._cumulative_rewards = {agent: 0 for agent in self.agents}
         self.terminations = {agent: False for agent in self.agents}
         self.truncations = {agent: False for agent in self.agents}
         self.rewards = {agent: 0 for agent in self.agents}
 
         self.uf = UnionFind(self.board_size * self.board_size + 4)
+        self.agent_selector = agent_selector(self.agents)
+        self.agent_selection = self.agent_selector.next()
         
         if self.window:
             self.window.fill(self.BACKGROUND)
             pygame.display.flip()
 
     def step(self, action):
+        if (
+            self.terminations[self.agent_selection]
+            or self.truncations[self.agent_selection]
+        ):
+            # handles stepping an agent which is already dead
+            # accepts a None action for the one agent, and moves the agent_selection to
+            # the next dead agent,  or if there are no more dead agents, to the next live agent
+            self._was_dead_step(action)
+            return
+
         #Check if the action is within the valid range.
-        if action not in range(self.action_space.n):
+        if action not in self.all_actions:
             raise ValueError("Illegal move: Action is out of bounds.")
         # Handle pie rule
         if action == self.board_size * self.board_size:
@@ -215,12 +231,14 @@ class OurHexGame(AECEnv):
             # Player 2 has made their first move, make pie rule unusable
             self.is_pie_rule_usable = False
 
-        for agent in self.agents:
-            self._cumulative_rewards[agent] += self.rewards[agent]
+        # recompute the info for all agents
+        self.infos = {
+            agent: self.generate_info(agent) for agent in self.agents
+        }
+        # accumulate the rewards for all agents
+        self._accumulate_rewards()
 
-        #Advance to the next agent if the game is not over
-        if not any(self.terminations.values()):
-            self.agent_selection = self.agent_selector.next()
+        self.agent_selection = self.agent_selector.next()
 
 
 
@@ -271,32 +289,28 @@ class OurHexGame(AECEnv):
             "pie_rule_used": 1 if self.is_pie_rule_used else 0
         }
 
-    def generate_info(self):
+    def generate_info(self, agent):
         """
         Generates the info based on the agent that is currently chosen by the agent_selector.
         :return: None, info is available in the self.infos dict, and should be returned as part of the last or step function tuple.
         """
-        agent = self.agent_selection
 
         # since we determined that player_1 is always going to be red, and vice versa for player_2, we can use the
         # index to tell if the agent is horizontal(0) or vertical (1).
         direction = self.agents.index(agent)
 
-        action_mask_size = 122 # 122 because board size = 11 ** 2 = 121 + 1 = 122 for pie rule.
-        board_size = self.board_size # declare local variable for ease of writing.
-        action_mask = [0] * action_mask_size
-
-        for slot in range(action_mask_size-1): # -1 to only iterate through board.
-            row, col = divmod(slot, board_size)
-            if self.board[row, col] == 0:
-                action_mask[slot] = 1
+        action_mask = np.zeros(self.board_size * self.board_size + 1,
+                               dtype=np.int8)  # +1 for pie rule
+        for action in range(self.board_size * self.board_size):
+            row, col = divmod(action, self.board_size)
+            action_mask[action] = 1 if self.board[row, col] == 0 else 0
 
         # the last item in the action mask is the pie rule, and since we aren't recording how many turns were played,
         # we can just find the sum of the action mask, and check if it is equal to the number of slots on  the board - 1
         # (only one chip placed, in other words, second turn), and to be sure, check that it is the second player's turn.
-        action_mask[-1] = 1 if np.sum(action_mask) == (board_size ** 2) - 1 and direction == 1 else 0
+        action_mask[-1] = 1 if np.sum(action_mask) == (self.board_size ** 2) - 1 and direction == 1 else 0
 
-        self.infos[agent] = {
+        return {
             'direction': direction,
             'action_mask': action_mask,
         }
