@@ -63,6 +63,7 @@ please someone donate your code! thank you!
 - See ```myrunner-eg.py```
 
 ```python
+env = OurHexGame(board_size=11, sparse_flag=True) # or False
 agent = GXXAgent(env)
 ...
 action = agent.select_action(observation, reward, termination, truncation, info)
