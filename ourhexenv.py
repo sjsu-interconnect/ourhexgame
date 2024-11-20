@@ -82,7 +82,7 @@ class UnionFind:
 class OurHexGame(AECEnv):
     metadata = {"render.modes": ["human"]}
 
-    def __init__(self, board_size=5, sparse_flag=True):
+    def __init__(self, board_size=11, sparse_flag=True):
         super().__init__()
         self.board_size = board_size
         self.sparse_flag = sparse_flag
