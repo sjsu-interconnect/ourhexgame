@@ -161,7 +161,6 @@ class OurHexGame(AECEnv):
         self.is_first = True
         self.is_pie_rule_usable = True
         self.is_pie_rule_used = False
-        self.agent_selection = "player_1"
 
         self.dones = {agent: False for agent in self.agents}
         self.infos = {agent: self.generate_info(agent) for agent in self.agents}
