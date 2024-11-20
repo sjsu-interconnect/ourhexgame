@@ -1,6 +1,6 @@
 import math
 from operator import index
-
+import warnings
 import pygame
 import numpy as np
 from typing import Dict
@@ -80,9 +80,9 @@ class UnionFind:
 
 
 class OurHexGame(AECEnv):
-    metadata = {"render.modes": ["human"]}
+    metadata = {"render_modes": ["human"]}
 
-    def __init__(self, board_size=11, sparse_flag=True):
+    def __init__(self, board_size=11, sparse_flag=True, render_mode="human"):
         super().__init__()
         self.board_size = board_size
         self.sparse_flag = sparse_flag
@@ -109,7 +109,6 @@ class OurHexGame(AECEnv):
         self.is_pie_rule_used = False # Tracks wheteher the pie rule has been activated by pie rule 2
         self.board = np.zeros((self.board_size, self.board_size), dtype=int)
 
-
         # Pettingzoo requires that each space is a unique object, so we need to create a new space for each agent
         self.action_spaces = {agent: spaces.Discrete(self.board_size * self.board_size + 1) for agent in self.agents}
         self.all_actions = list(range(self.board_size * self.board_size + 1))
@@ -131,21 +130,24 @@ class OurHexGame(AECEnv):
         self.infos = {agent: self.generate_info(agent) for agent in self.agents}
         self.dones = {agent: False for agent in self.agents}
 
-        # Pygame setup
-        self.window = None
-        self.clock = None
-        self.cell_size = 30
-        self.hex_radius = self.cell_size // 2
-        self.width = int(self.cell_size * (board_size * 2.25))
-        self.height = int(self.cell_size * (board_size * 1.25)) + 10
-        self.hex_points_cache = {}
-        
-        # Colors
-        self.BACKGROUND = (200, 200, 200)
-        self.GRID = (100, 100, 100)
-        self.PLAYER1 = (255, 50, 50)    # Red
-        self.PLAYER2 = (50, 50, 255)    # Blue
-        self.EMPTY = (255, 255, 255)    # White
+        self.render_mode = render_mode
+
+        if self.render_mode == "human":
+            # Pygame setup
+            self.window = None
+            self.clock = None
+            self.cell_size = 30
+            self.hex_radius = self.cell_size // 2
+            self.width = int(self.cell_size * (board_size * 2.25))
+            self.height = int(self.cell_size * (board_size * 1.25)) + 10
+            self.hex_points_cache = {}
+            
+            # Colors
+            self.BACKGROUND = (200, 200, 200)
+            self.GRID = (100, 100, 100)
+            self.PLAYER1 = (255, 50, 50)    # Red
+            self.PLAYER2 = (50, 50, 255)    # Blue
+            self.EMPTY = (255, 255, 255)    # White
 
         # Union Find Check Winner Setup
         self.uf = UnionFind(board_size * board_size + 4)  # Extra 4 for virtual nodes
@@ -173,9 +175,10 @@ class OurHexGame(AECEnv):
         self.agent_selector = agent_selector(self.agents)
         self.agent_selection = self.agent_selector.next()
         
-        if self.window:
-            self.window.fill(self.BACKGROUND)
-            pygame.display.flip()
+        if self.render_mode == "human":
+            if self.window:
+                self.window.fill(self.BACKGROUND)
+                pygame.display.flip()
 
     def step(self, action):
         if (
@@ -238,8 +241,8 @@ class OurHexGame(AECEnv):
         self._accumulate_rewards()
 
         self.agent_selection = self.agent_selector.next()
-
-
+        if self.render_mode == "human":
+            self.render()
 
     def place_piece(self, row, col, marker):
         """
@@ -269,7 +272,6 @@ class OurHexGame(AECEnv):
 
         self.board[row, col] = marker
 
-
     def check_winner(self, player):
         """
         Check whether a certain player has won the game
@@ -280,7 +282,6 @@ class OurHexGame(AECEnv):
         elif player == 2:  # Second player
             return self.uf.find(self.left_virtual) == self.uf.find(self.right_virtual)
         return False
-
 
     def observe(self, agent):
         return {
@@ -314,7 +315,6 @@ class OurHexGame(AECEnv):
             'action_mask': action_mask,
         }
 
-
     def _get_hex_points(self, x, y):
         if (x, y) in self.hex_points_cache:
             return self.hex_points_cache[(x, y)]
@@ -328,7 +328,12 @@ class OurHexGame(AECEnv):
         self.hex_points_cache[(x, y)] = points
         return points
 
-    def render(self, mode="human"):
+    def render(self):
+
+        if self.render_mode is None:
+            warnings.warn("You are calling render method without specifying any render mode.")
+            return
+        
         if self.window is None:
             pygame.init()
             pygame.display.init()
@@ -375,7 +380,6 @@ class OurHexGame(AECEnv):
 
         pygame.display.flip()
         self.clock.tick(30)
-
 
     def close(self):
         print("Called close")
