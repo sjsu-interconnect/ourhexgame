@@ -1,6 +1,5 @@
 import math
-from operator import index
-
+import warnings
 import pygame
 import numpy as np
 from typing import Dict
@@ -80,90 +79,104 @@ class UnionFind:
 
 
 class OurHexGame(AECEnv):
-    metadata = {"render.modes": ["human"]}
+    metadata = {"render_modes": ["human"]}
 
-    def __init__(self, board_size=11, sparse_flag=True):
+    def __init__(self, board_size=11, sparse_flag=True, render_mode="human"):
         super().__init__()
         self.board_size = board_size
         self.sparse_flag = sparse_flag
         # Initialize reward mapping. Always three keys: WIN, LOSE, MOVE
         if self.sparse_flag:
             self.reward_mapping: Dict[str, int] = {
-                "WIN": 1,
-                "LOSE": -1,
-                "MOVE": 0
-            }
+                "WIN": 1, "LOSE": -1, "MOVE": 0}
         else:
-            max_reward = (board_size * board_size)/2
+            max_reward = (board_size * board_size) / 2
             self.reward_mapping: Dict[str, int] = {
                 "WIN": math.floor(max_reward),
                 "LOSE": -math.ceil(max_reward),
-                "MOVE": -1
+                "MOVE": -1,
             }
 
         self.possible_agents = ["player_1", "player_2"]
         self.agents = self.possible_agents[:]
         self.agent_selector = agent_selector(self.agents)
         self.agent_selection = self.agent_selector.next()
-        self.is_pie_rule_usable = True # Tracks whether the pie rule is available for a user
-        self.is_pie_rule_used = False # Tracks wheteher the pie rule has been activated by pie rule 2
+        self.is_pie_rule_usable = (
+            True  # Tracks whether the pie rule is available for a user
+        )
+        self.is_pie_rule_used = (
+            False  # Tracks wheteher the pie rule has been activated by pie rule 2
+        )
         self.board = np.zeros((self.board_size, self.board_size), dtype=int)
 
-
         # Pettingzoo requires that each space is a unique object, so we need to create a new space for each agent
-        self.action_spaces = {agent: spaces.Discrete(self.board_size * self.board_size + 1) for agent in self.agents}
+        self.action_spaces = {
+            agent: spaces.Discrete(self.board_size * self.board_size + 1)
+            for agent in self.agents
+        }
         self.all_actions = list(range(self.board_size * self.board_size + 1))
 
         self.observation_spaces = {
-            agent: spaces.Dict({
-                "observation": spaces.Box(low=0,
-                                          high=2,
-                                          shape=(self.board_size, self.board_size),
-                                          dtype=int),
-                "pie_rule_used": spaces.Discrete(2), # 1 if used, 0 otherwise
-            })
+            agent: spaces.Dict(
+                {
+                    "observation": spaces.Box(
+                        low=0,
+                        high=2,
+                        shape=(self.board_size, self.board_size),
+                        dtype=int,
+                    ),
+                    # 1 if used, 0 otherwise
+                    "pie_rule_used": spaces.Discrete(2),
+                }
+            )
             for agent in self.agents
         }
 
         self._cumulative_rewards = {agent: 0 for agent in self.agents}
         self.terminations = {agent: False for agent in self.agents}
         self.truncations = {agent: False for agent in self.agents}
-        self.infos = {agent: self.generate_info(agent) for agent in self.agents}
+        self.infos = {agent: self.generate_info(
+            agent) for agent in self.agents}
         self.dones = {agent: False for agent in self.agents}
 
-        # Pygame setup
-        self.window = None
-        self.clock = None
-        self.cell_size = 30
-        self.hex_radius = self.cell_size // 2
-        self.width = int(self.cell_size * (board_size * 2.25))
-        self.height = int(self.cell_size * (board_size * 1.25)) + 10
-        self.hex_points_cache = {}
-        
-        # Colors
-        self.BACKGROUND = (200, 200, 200)
-        self.GRID = (100, 100, 100)
-        self.PLAYER1 = (255, 50, 50)    # Red
-        self.PLAYER2 = (50, 50, 255)    # Blue
-        self.EMPTY = (255, 255, 255)    # White
+        self.render_mode = render_mode
+
+        if self.render_mode == "human":
+            # Pygame setup
+            self.window = None
+            self.clock = None
+            self.cell_size = 30
+            self.hex_radius = self.cell_size // 2
+            self.width = int(self.cell_size * (board_size * 2.25))
+            self.height = int(self.cell_size * (board_size * 1.25)) + 10
+            self.hex_points_cache = {}
+
+            # Colors
+            self.BACKGROUND = (200, 200, 200)
+            self.GRID = (100, 100, 100)
+            self.PLAYER1 = (255, 50, 50)  # Red
+            self.PLAYER2 = (50, 50, 255)  # Blue
+            self.EMPTY = (255, 255, 255)  # White
 
         # Union Find Check Winner Setup
-        self.uf = UnionFind(board_size * board_size + 4)  # Extra 4 for virtual nodes
-        self.top_virtual = board_size * board_size        # player_1 owns top + bottom nodes
+        # Extra 4 for virtual nodes
+        self.uf = UnionFind(board_size * board_size + 4)
+        self.top_virtual = board_size * board_size  # player_1 owns top + bottom nodes
         self.bottom_virtual = self.top_virtual + 1
-        self.left_virtual = self.top_virtual + 2          # player_2 owns left + right nodes
+        self.left_virtual = self.top_virtual + 2  # player_2 owns left + right nodes
         self.right_virtual = self.top_virtual + 3
 
     def reset(self, seed: int = None, options: dict = {}):
         self.board = np.zeros((self.board_size, self.board_size), dtype=int)
         self.agents = self.possible_agents[:]
-        
+
         self.is_first = True
         self.is_pie_rule_usable = True
         self.is_pie_rule_used = False
 
         self.dones = {agent: False for agent in self.agents}
-        self.infos = {agent: self.generate_info(agent) for agent in self.agents}
+        self.infos = {agent: self.generate_info(
+            agent) for agent in self.agents}
         self._cumulative_rewards = {agent: 0 for agent in self.agents}
         self.terminations = {agent: False for agent in self.agents}
         self.truncations = {agent: False for agent in self.agents}
@@ -172,10 +185,11 @@ class OurHexGame(AECEnv):
         self.uf = UnionFind(self.board_size * self.board_size + 4)
         self.agent_selector = agent_selector(self.agents)
         self.agent_selection = self.agent_selector.next()
-        
-        if self.window:
-            self.window.fill(self.BACKGROUND)
-            pygame.display.flip()
+
+        if self.render_mode == "human":
+            if self.window:
+                self.window.fill(self.BACKGROUND)
+                pygame.display.flip()
 
     def step(self, action):
         if (
@@ -188,15 +202,17 @@ class OurHexGame(AECEnv):
             self._was_dead_step(action)
             return
 
-        #Check if the action is within the valid range.
+        # Check if the action is within the valid range.
         if action not in self.all_actions:
             raise ValueError("Illegal move: Action is out of bounds.")
         # Handle pie rule
         if action == self.board_size * self.board_size:
             if self.agent_selection == "player_1":
-                raise ValueError("Illegal move: Pie rule can only be used by Player 2.")
+                raise ValueError(
+                    "Illegal move: Pie rule can only be used by Player 2.")
             if not self.is_pie_rule_usable:
-                raise ValueError("Illegal move: Pie rule can only be used once.")
+                raise ValueError(
+                    "Illegal move: Pie rule can only be used once.")
 
             # Use pie rule, if a (row,col) was 1, make it 0 and make (col,row) 1
             self.is_pie_rule_used = True
@@ -231,15 +247,14 @@ class OurHexGame(AECEnv):
             self.is_pie_rule_usable = False
 
         # recompute the info for all agents
-        self.infos = {
-            agent: self.generate_info(agent) for agent in self.agents
-        }
+        self.infos = {agent: self.generate_info(
+            agent) for agent in self.agents}
         # accumulate the rewards for all agents
         self._accumulate_rewards()
 
         self.agent_selection = self.agent_selector.next()
-
-
+        if self.render_mode == "human":
+            self.render()
 
     def place_piece(self, row, col, marker):
         """
@@ -252,7 +267,11 @@ class OurHexGame(AECEnv):
         directions = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, 1), (1, -1)]
         for dr, dc in directions:
             r, c = row + dr, col + dc
-            if 0 <= r < self.board_size and 0 <= c < self.board_size and self.board[r][c] == marker:
+            if (
+                0 <= r < self.board_size
+                and 0 <= c < self.board_size
+                and self.board[r][c] == marker
+            ):
                 self.uf.union(pos, r * self.board_size + c)
 
         # Connect to virtual nodes if on border
@@ -269,7 +288,6 @@ class OurHexGame(AECEnv):
 
         self.board[row, col] = marker
 
-
     def check_winner(self, player):
         """
         Check whether a certain player has won the game
@@ -281,11 +299,10 @@ class OurHexGame(AECEnv):
             return self.uf.find(self.left_virtual) == self.uf.find(self.right_virtual)
         return False
 
-
     def observe(self, agent):
         return {
             "observation": self.board,
-            "pie_rule_used": 1 if self.is_pie_rule_used else 0
+            "pie_rule_used": 1 if self.is_pie_rule_used else 0,
         }
 
     def generate_info(self, agent):
@@ -298,8 +315,9 @@ class OurHexGame(AECEnv):
         # index to tell if the agent is horizontal(0) or vertical (1).
         direction = self.agents.index(agent)
 
-        action_mask = np.zeros(self.board_size * self.board_size + 1,
-                               dtype=np.int8)  # +1 for pie rule
+        action_mask = np.zeros(
+            self.board_size * self.board_size + 1, dtype=np.int8
+        )  # +1 for pie rule
         for action in range(self.board_size * self.board_size):
             row, col = divmod(action, self.board_size)
             action_mask[action] = 1 if self.board[row, col] == 0 else 0
@@ -307,13 +325,16 @@ class OurHexGame(AECEnv):
         # the last item in the action mask is the pie rule, and since we aren't recording how many turns were played,
         # we can just find the sum of the action mask, and check if it is equal to the number of slots on  the board - 1
         # (only one chip placed, in other words, second turn), and to be sure, check that it is the second player's turn.
-        action_mask[-1] = 1 if np.sum(action_mask) == (self.board_size ** 2) - 1 and direction == 1 else 0
+        action_mask[-1] = (
+            1
+            if np.sum(action_mask) == (self.board_size**2) - 1 and direction == 1
+            else 0
+        )
 
         return {
-            'direction': direction,
-            'action_mask': action_mask,
+            "direction": direction,
+            "action_mask": action_mask,
         }
-
 
     def _get_hex_points(self, x, y):
         if (x, y) in self.hex_points_cache:
@@ -328,11 +349,20 @@ class OurHexGame(AECEnv):
         self.hex_points_cache[(x, y)] = points
         return points
 
-    def render(self, mode="human"):
+    def render(self):
+
+        if self.render_mode is None:
+            warnings.warn(
+                "You are calling render method without specifying any render mode."
+            )
+            return
+
         if self.window is None:
             pygame.init()
             pygame.display.init()
-            self.window = pygame.display.set_mode((self.width, self.height), pygame.SRCALPHA)
+            self.window = pygame.display.set_mode(
+                (self.width, self.height), pygame.SRCALPHA
+            )
             pygame.display.set_caption("Hex Game")
             self.clock = pygame.time.Clock()
             self.hex_points_cache = {}
@@ -341,17 +371,18 @@ class OurHexGame(AECEnv):
             if event.type == pygame.QUIT:
                 pygame.quit()
                 return
-            
+
         self.window.fill(self.BACKGROUND)
 
         # Draw the board
         for row in range(self.board_size):
             for col in range(self.board_size):
-                x = self.cell_size * (1.4 * col + 1) + (row * self.cell_size * 0.75)
-                y = self.cell_size * (row * math.sqrt(3)/2 + 1)
-                
+                x = self.cell_size * (1.4 * col + 1) + \
+                    (row * self.cell_size * 0.75)
+                y = self.cell_size * (row * math.sqrt(3) / 2 + 1)
+
                 points = self._get_hex_points(x, y)
-                
+
                 color = self.EMPTY
                 if self.board[row, col] == 1:
                     color = self.PLAYER1
@@ -360,22 +391,41 @@ class OurHexGame(AECEnv):
 
                 pygame.draw.polygon(self.window, color, points)
                 pygame.draw.aalines(self.window, self.GRID, True, points, 2)
-                
+
         # Player_1 borders (top-bottom)
-        pygame.draw.line(self.window, self.PLAYER1, (self.cell_size, 0), 
-                        (self.width - self.cell_size, 0), 5)
-        pygame.draw.line(self.window, self.PLAYER1, (self.cell_size, self.height), 
-                        (self.width - self.cell_size, self.height), 5)
-                        
+        pygame.draw.line(
+            self.window,
+            self.PLAYER1,
+            (self.cell_size, 0),
+            (self.width - self.cell_size, 0),
+            5,
+        )
+        pygame.draw.line(
+            self.window,
+            self.PLAYER1,
+            (self.cell_size, self.height),
+            (self.width - self.cell_size, self.height),
+            5,
+        )
+
         # Player_2 borders (left-right)
-        pygame.draw.line(self.window, self.PLAYER2, (0, self.cell_size), 
-                        (0, self.height - self.cell_size), 5)
-        pygame.draw.line(self.window, self.PLAYER2, (self.width, self.cell_size), 
-                        (self.width, self.height - self.cell_size), 5)
+        pygame.draw.line(
+            self.window,
+            self.PLAYER2,
+            (0, self.cell_size),
+            (0, self.height - self.cell_size),
+            5,
+        )
+        pygame.draw.line(
+            self.window,
+            self.PLAYER2,
+            (self.width, self.cell_size),
+            (self.width, self.height - self.cell_size),
+            5,
+        )
 
         pygame.display.flip()
         self.clock.tick(30)
-
 
     def close(self):
         print("Called close")
