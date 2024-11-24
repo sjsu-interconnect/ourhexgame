@@ -301,7 +301,7 @@ class OurHexGame(AECEnv):
 
     def observe(self, agent):
         return {
-            "observation": self.board,
+            "observation": self.board.copy(),
             "pie_rule_used": 1 if self.is_pie_rule_used else 0,
         }
 
