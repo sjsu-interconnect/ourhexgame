@@ -227,8 +227,11 @@ class OurHexGame(AECEnv):
             self.is_pie_rule_used = True
             x, y = np.where(self.board == 1)
             row, col = x[0], y[0]
-            self.board[row][col] = 0
-            self.board[col][row] = 2
+            # Reset both the board and UF structure before placing the piece
+            self.board = np.zeros((self.board_size, self.board_size), dtype=int)
+            self.uf = UnionFind(self.board_size * self.board_size + 4)
+            self.place_piece(row, col, 2)
+
         else:
             row, col = divmod(action, self.board_size)
 
@@ -295,7 +298,7 @@ class OurHexGame(AECEnv):
             if col == self.board_size - 1:
                 self.uf.union(pos, self.right_virtual)
 
-        self.board[row, col] = marker
+        self.board[row][col] = marker
 
     def check_winner(self, player):
         """
