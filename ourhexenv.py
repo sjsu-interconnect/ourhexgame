@@ -230,7 +230,7 @@ class OurHexGame(AECEnv):
             # Reset both the board and UF structure before placing the piece
             self.board = np.zeros((self.board_size, self.board_size), dtype=int)
             self.uf = UnionFind(self.board_size * self.board_size + 4)
-            self.place_piece(row, col, 2)
+            self.place_piece(col, row, 2)
 
         else:
             row, col = divmod(action, self.board_size)
