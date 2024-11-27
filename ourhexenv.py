@@ -78,6 +78,15 @@ class UnionFind:
                 self.parent[rootY] = rootX
                 self.rank[rootX] += 1
 
+    def __eq__(self, other):
+        return (self.rank == other.rank) and (self.parent == other.parent)
+
+    def __copy__(self):
+        deep_copy = UnionFind(len(self.parent))
+        deep_copy.rank = self.rank.copy()
+        deep_copy.parent = self.parent.copy()
+        return deep_copy
+
 
 class OurHexGame(AECEnv):
     metadata = {"render_modes": ["human"]}
@@ -444,3 +453,42 @@ class OurHexGame(AECEnv):
         if self.window is not None:
             self.window = None
             self.clock = None
+
+    def __copy__(self):
+        env_deep_copy = OurHexGame()
+        env_deep_copy.board = self.board.copy()
+        env_deep_copy.agents = self.agents.copy()
+
+        env_deep_copy.is_first = self.is_first
+        env_deep_copy.is_pie_rule_usable = self.is_pie_rule_usable
+        env_deep_copy.is_pie_rule_used = self.is_pie_rule_used
+
+        env_deep_copy.dones = self.dones.copy()
+        env_deep_copy.infos = self.infos.copy()
+        env_deep_copy._cumulative_rewards = self._cumulative_rewards.copy()
+        env_deep_copy.terminations = self.terminations.copy()
+        env_deep_copy.truncations = self.truncations.copy()
+        env_deep_copy.rewards = self.rewards.copy()
+
+        env_deep_copy.uf = self.uf.__copy__()
+        env_deep_copy.agent_selector = self.agent_selector
+        env_deep_copy.agent_selection = self.agent_selection
+
+        return env_deep_copy
+
+    def __eq__(self, other):
+        return (
+            (self.board == other.board).all() and
+            self.agents == other.agents and
+            self.is_first == other.is_first and
+            self.is_pie_rule_usable == other.is_pie_rule_usable and
+            self.is_pie_rule_used == other.is_pie_rule_used and
+            self.dones == other.dones and
+            self.infos == other.infos and
+            self._cumulative_rewards == other._cumulative_rewards and
+            self.terminations == other.terminations and
+            self.truncations == other.truncations and
+            self.rewards == other.rewards and
+            self.uf == other.uf and
+            self.agent_selector == other.agent_selector and
+            self.agent_selection == other.agent_selection)
