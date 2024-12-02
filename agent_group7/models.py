@@ -310,10 +310,7 @@ class PPOAgent(Agent):
     def from_file(cls, model_path: str, env: OurHexGame):
         device = "cuda" if torch.cuda.is_available() else "cpu"
         actor_critic = ActorCriticNN()
-        with open(model_path, "rb") as fp:
-            checkpoint_dict = pickle.load(fp)
-        state_dict = checkpoint_dict["nn_state_dict"]
-        actor_critic.load_state_dict(state_dict)
+        actor_critic.load_state_dict(torch.load(model_path, map_location=device))
         _instance = cls(env, actor_critic, device=device)
         _instance.to(device)
         return _instance

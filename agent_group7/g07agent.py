@@ -12,6 +12,17 @@ class G07Agent(Agent):
     """Wrapper class for the two agents.
     """
     def __init__(self, env: OurHexGame) -> "G07Agent":
+        # Figure out the path of this file
+        self.directory = os.path.dirname(os.path.abspath(__file__))
+        env_name_expected_file = [
+            ("G07AGENT_SPARSE", "sparse_agent.pth"),
+            ("G07AGENT_DENSE", "dense_agent.pth"),
+        ]
+        for env_name, expected_file in env_name_expected_file:
+            if os.environ.get(env_name, None) is None:
+                file_path = os.path.join(self.directory, expected_file)
+                if os.path.exists(file_path):
+                    os.environ[env_name] = file_path
         if env.sparse_flag:
             agent_file = os.environ.get("G07AGENT_SPARSE", None)
             if not agent_file:
