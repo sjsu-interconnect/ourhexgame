@@ -61,12 +61,17 @@ def load_hyperparameters(config_file, config_key):
         config = yaml.safe_load(file)
     return config[config_key]
 
+this_path = os.path.abspath(__file__)
+my_dir = os.path.dirname(this_path)
+model_path = os.path.join(my_dir, "g10_model.pt")
+
+
 
 class G10Agent:
     """
     Optimized RL Agent for HexGame with full functionality.
     """
-    def __init__(self, env, config_file="hyperparameters.yml", config_key="default", model_save_path="g10_model.pt"):
+    def __init__(self, env, config_file="hyperparameters.yml", config_key="default", model_save_path=model_path):
         # Load hyperparameters
         self.params = load_hyperparameters(config_file, config_key)
 
