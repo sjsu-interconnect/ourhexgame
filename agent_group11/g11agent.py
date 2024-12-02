@@ -1,6 +1,6 @@
 import torch
 
-from dqn_noisy import DQNAgent
+from agent_group11.dqn_noisy import DQNAgent
 
 
 def load_model(agent, filename="dqn_model.pth"):
@@ -15,7 +15,7 @@ class G11Agent:
         self.env = env
         self.agent_name = 'player_1'
         self.dqn_agent = DQNAgent(env, buffer_size=10000, batch_size=128, name=self.agent_name)
-        load_file = "saved_models/dqn_noisy_against_smart_" + self.agent_name
+        load_file = "agent_group11/saved_models/dqn_noisy_against_smart_" + self.agent_name
         load_model(self.dqn_agent, load_file)
 
     def select_action(self, observation, reward, termination, truncation, info):
