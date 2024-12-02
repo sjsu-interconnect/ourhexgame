@@ -1,6 +1,7 @@
 from ourhexenv import OurHexGame
 from g10agent import G10Agent
 from gYYagent import GYYAgent
+from agent_group7 import g07agent
 import random
 
 # Initialize the environment
@@ -9,7 +10,7 @@ env.reset()
 
 # Initialize agents
 gXXagent = G10Agent(env)  # Player 1
-gYYagent = GYYAgent(env)  # Player 2
+gYYagent = g07agent(env)  # Player 2
 
 # Define the number of episodes
 episodes = 10
