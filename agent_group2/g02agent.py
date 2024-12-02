@@ -104,7 +104,7 @@ class UCBDQNAgent:
                 self.lr = 1e-5
                 self.ucb_c = 4.0
             
-            model_path = "sparse_ucb_dqn_agent.pt" if sparse_flag else "dense_ucb_dqn_agent.pt"
+            model_path = "agent_group2/sparse_ucb_dqn_agent.pt" if sparse_flag else "agent_group2/dense_ucb_dqn_agent.pt"
             print(f"Loading model: {model_path}")
             self.policy_net.load_state_dict(torch.load(model_path, weights_only=True))
             self.policy_net.eval()
