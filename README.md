@@ -3,6 +3,7 @@
 - Upload your agent (and related files) to this github repo (You can find your group's directory, ```agent_groupX```.)
 - There is no need to create a separate branch to upload the agent. Just push everything to the main branch.
 - Right before every game, you should pull the repo so you have the latest opponent agent
+  - If a group fails to upload the updated agent before the cutoff time, we will use the default one pre-uploaded to the repo
 - Please designate **one person** as an executor for all games for the smooth transitions
   - Please make sure this person's laptop has the libraries (PyTorch, Tensorflow, SKlearn, ...)
 - For group stage, every group will compete with the other groups in the same group stage. Only one group proceeds to the knockdown stage. 
