@@ -8,7 +8,7 @@ class G08Agent:
     def __init__(self, env, player="player_1", model_path="./agent_group8/model/2"):
         self.env = env
         self.current_player = player
-        self.temperature = 1
+        self.temperature = 0.3
 
         self.actor = PolicyValueNetwork(
             board_size=11, output_dim=env.action_spaces[player].n
