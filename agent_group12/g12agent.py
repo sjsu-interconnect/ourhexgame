@@ -40,7 +40,6 @@ class G12Agent(nn.Module):
         self.log_probs = []
 
     def select_action(self, observation, reward, termination, truncation, info):
-        # Flatten the board and append the pie rule flag
         obs = observation["observation"].flatten()
         # Convert to PyTorch tensor
         state = torch.tensor(obs, dtype=torch.float32).to(self.device)
