@@ -9,6 +9,8 @@ class ActorCriticNetwork(nn.Module):
     def __init__(self, n_actions, input_dims, actor_lr, critic_lr, fc1_dims=512, fc2_dims=512, fc3_dims=256, fc4_dims=256):
         super(ActorCriticNetwork, self).__init__()
 
+        # self.action_counts = np.zeros(n_actions)
+
         self.actor = nn.Sequential(
             nn.Linear(*input_dims, fc1_dims),
             nn.ReLU(),
@@ -73,6 +75,17 @@ class ActorCriticNetwork(nn.Module):
             probs_np[valid_actions] = 1.0 / np.sum(valid_actions)
             # import ipdb; ipdb.set_trace()
 
+        # # UCB calculation
+        # t = np.sum(self.action_counts) + 1
+        # ucb_values = probs_np + np.sqrt(2 * np.log(t) / (self.action_counts + 1e-5))
+        # ucb_values[~valid_actions] = -np.inf  # Ensure invalid actions are not selected
+
+        # # Choose action based on UCB - select action with maximum UCB value
+        # action = np.argmax(ucb_values)
+
+        # # Update count for selected action
+        # self.action_counts[action] += 1
+            
         # Choose action
         action = np.random.choice(len(probs_np), p=probs_np)
 

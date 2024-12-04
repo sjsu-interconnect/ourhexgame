@@ -1,5 +1,5 @@
 from ourhexenv import OurHexGame
-from agents.ppo_agent import Agent
+from ppo_agent import Agent
 
 class G06Agent(Agent):
     """Wrapper class for our agents.

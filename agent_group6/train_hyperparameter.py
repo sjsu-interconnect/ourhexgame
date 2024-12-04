@@ -2,9 +2,9 @@ import ray
 from ray import tune
 from ray.tune.schedulers import ASHAScheduler
 from ourhexenv import OurHexGame
-from agents.ppo_agent import Agent
-from agents.random_agent import RandomAgent
-from agents.bit_smarter_agent import BitSmartAgent
+from ppo_agent import Agent
+from random_agent import RandomAgent
+from bit_smarter_agent import BitSmartAgent
 import torch
 from tqdm import tqdm
 
@@ -88,8 +88,8 @@ def train_with_tune(config):
 
     # Training against RandomAgent and BitSmartAgent
     opponents = [
-        (RandomAgent(), 'random', 1000),
-        (BitSmartAgent(), 'bitsmart', 1000)
+        (RandomAgent(), 'random', 2000),
+        (BitSmartAgent(), 'bitsmart', 2000)
     ]
 
     for opponent, _, episodes in opponents:
@@ -169,6 +169,7 @@ def main():
     print("Best trial final win rate:", best_result.metrics['win_rate'])
 
     # Train final model with best hyperparameters
+    # Switch the sparse_flag to train a sparse reward model
     env = OurHexGame(board_size=11, sparse_flag=False, render_mode=None)
     final_agent = Agent(
         n_actions=env.action_spaces[env.possible_agents[0]].n,
@@ -181,7 +182,7 @@ def main():
     train_against_agent(env, final_agent, final_agent, episodes=5000)
 
     # Save the final model
-    save_ppo_checkpoint(final_agent, filename="ppo_checkpoint_final.pth")
+    save_ppo_checkpoint(final_agent, filename="ppo_checkpoint_dense.pth")
 
 
 if __name__ == "__main__":

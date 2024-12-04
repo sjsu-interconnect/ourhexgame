@@ -1,7 +1,7 @@
 import numpy as np
 import torch as T
-from agents.ppo_memory import PPOBufferMemory
-from agents.acn import ActorCriticNetwork
+from ppo_memory import PPOBufferMemory
+from acn import ActorCriticNetwork
 
 class Agent:
     def __init__(self, n_actions, input_dims, gamma=0.99, actor_lr=0.0003, critic_lr=0.0003, gae_lambda=0.95,
@@ -36,7 +36,30 @@ class Agent:
         # Use the actor-critic network to choose an action based on the current state and action mask
         return self.actor_critic.act(state, info["action_mask"])
  
+    # def calculate_gae(self, rewards, values, dones):
+    #     advantages_arr = []
+    #     for ep_rewards, ep_values, ep_dones in zip(rewards, values, dones):
+    #         advantages = []
+    #         last_advantage = 0
+
+    #         for t in reversed(range(len(ep_rewards))):
+    #             if t + 1 < len(ep_rewards):
+    #                 delta = ep_rewards[t] + self.gamma * ep_values[t+1] * (1 - ep_dones[t+1]) - ep_values[t]
+    #             else:
+    #                 delta = ep_rewards[t] - ep_values[t]
+
+    #             advantage = delta + self.gamma * self.lam * (1 - ep_dones[t]) * last_advantage
+    #             last_advantage = advantage
+    #             advantages.insert(0, advantage)
+
+    #         advantages_arr.extend(advantages)
+
+    #     return T.tensor(advantages_arr, dtype=T.float)
+    
     def learn(self):
+        # # Reset action counts (for exploration strategies like UCB)
+        # self.actor_critic.reset_action_counts()
+
         for _ in range(self.n_epochs):
             # Generate batches from memory buffer
             state_arr, action_arr, old_prob_arr, vals_arr, reward_arr, dones_arr, batches = self.memory.generate_batches()
