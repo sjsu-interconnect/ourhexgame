@@ -9,7 +9,10 @@ import torch
 from tqdm import tqdm
 
 def save_ppo_checkpoint(agent, filename='ppo_checkpoint.pth', iteration=0):
-    """Save the PPO agent's state in a checkpoint file."""
+    """
+    Save the PPO agent's state in a checkpoint file.
+    Includes model weights, optimizers' states, and current training iteration.
+    """
     checkpoint = {
         'model_state_dict': agent.actor_critic.state_dict(),
         'actor_optimizer_state_dict': agent.actor_critic.actor_optimizer.state_dict(),
@@ -21,7 +24,10 @@ def save_ppo_checkpoint(agent, filename='ppo_checkpoint.pth', iteration=0):
 
 
 def load_ppo_checkpoint(agent, filename='ppo_checkpoint.pth'):
-    """Load the PPO agent's state from a checkpoint file."""
+    """
+    Load the PPO agent's state from a checkpoint file.
+    Restores model weights and optimizer states if a checkpoint exists.
+    """
     try:
         checkpoint = torch.load(filename)
         agent.actor_critic.load_state_dict(checkpoint['model_state_dict'])
@@ -32,14 +38,15 @@ def load_ppo_checkpoint(agent, filename='ppo_checkpoint.pth'):
 
 def train_against_agent(env, agent1, agent2, episodes):
     """
-    Train a PPO agent (Agent1) against a specified opponent (Agent2) with role-swapping.
+    Train a PPO agent (agent1) against a specified opponent (agent2) with role-swapping.
+    Role-swapping allows agent1 to train as both Player 1 and Player 2.
     """
     for episode in tqdm(range(episodes), desc="Training Episodes"):
         env.reset()
         terminations = {agent: False for agent in env.possible_agents}
         scores = {agent: 0 for agent in env.possible_agents}
 
-        # Determine roles based on episode number
+        # Swap roles halfway through the training
         if episode < episodes // 2:
             p1_agent, p2_agent = agent1, agent2  # Agent1 as player_1
         else:
@@ -60,7 +67,7 @@ def train_against_agent(env, agent1, agent2, episodes):
                     action, probs, value = current_agent.choose_action(obs_flat, info)
                     env.step(action.item())
                     updated_reward = env.rewards[agent_id]
-                    # Only store memory for the PPO agent being trained
+                    # Store memory for the PPO agent being trained
                     if current_agent == agent1:
                         agent1.remember(obs_flat, action, probs, value, updated_reward, done)
                     scores[agent_id] += updated_reward
@@ -78,7 +85,10 @@ def train_against_agent(env, agent1, agent2, episodes):
 
 
 def train_with_tune(config):
-    """Training with Ray Tune for hyperparameter optimization."""
+    """
+    Training function for Ray Tune hyperparameter optimization.
+    Trains the PPO agent with the given configuration against various opponents.
+    """
     env = OurHexGame(board_size=11, sparse_flag=False, render_mode=None)
     ppo_agent = Agent(
         n_actions=env.action_spaces[env.possible_agents[0]].n,
@@ -86,7 +96,7 @@ def train_with_tune(config):
         **config
     )
 
-    # Training against RandomAgent and BitSmartAgent
+    # Train against RandomAgent and BitSmartAgent
     opponents = [
         (RandomAgent(), 'random', 2000),
         (BitSmartAgent(), 'bitsmart', 2000)
@@ -128,10 +138,13 @@ def train_with_tune(config):
             wins += 1
 
     win_rate = wins / eval_episodes
-    ray.train.report({"win_rate":win_rate})
+    ray.train.report({"win_rate": win_rate})
 
 
 def main():
+    """
+    Main function to initialize Ray Tune, configure hyperparameter tuning, and start training.
+    """
     ray.init(num_gpus=1)
 
     # Hyperparameter tuning configuration
@@ -164,12 +177,12 @@ def main():
 
     results = tuner.fit()
 
+    # Extract the best configuration from tuning
     best_result = results.get_best_result("win_rate", "max", "last")
     print("Best trial config:", best_result.config)
     print("Best trial final win rate:", best_result.metrics['win_rate'])
 
     # Train final model with best hyperparameters
-    # Switch the sparse_flag to train a sparse reward model
     env = OurHexGame(board_size=11, sparse_flag=False, render_mode=None)
     final_agent = Agent(
         n_actions=env.action_spaces[env.possible_agents[0]].n,
@@ -177,7 +190,7 @@ def main():
         **best_result.config
     )
 
-    # Training against self-play with best hyperparameters
+    # Final self-play training
     print("\nFinal self-play training...")
     train_against_agent(env, final_agent, final_agent, episodes=5000)
 
