@@ -181,7 +181,7 @@ class Node:
 policyValueNetwork = PolicyValueNetwork(board_size=11, num_actions=11*11+1).to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 
 class MCTSAgent:
-    def __init__(self, env, neural_network=None, num_simulations=800, c_puct=1.0, dirichlet_alpha=0.03, epsilon=0.25):
+    def __init__(self, env, neural_network=None, num_simulations=62, c_puct=1.69, dirichlet_alpha=0.13, epsilon=0.39):
         self.env = env
         if neural_network is None:
             self.neural_network = PolicyValueNetwork(env.board_size, env.board_size * env.board_size + 1)
@@ -293,10 +293,25 @@ class MCTSAgent:
         state_array = np.stack([player1, player2, current_player_channel, pie_rule_channel], axis=0)
         state_tensor = torch.from_numpy(state_array).unsqueeze(0).to(self.device)
         return state_tensor
-    
+
+
 def load_mcts_agent(env, filepath):
+    checkpoint = torch.load(filepath, map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+
+    # Recreate the neural network and agent
     neural_network = PolicyValueNetwork(env.board_size, env.board_size * env.board_size + 1)
-    neural_network.load_state_dict(torch.load(filepath, map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu")))
-    neural_network.eval()  # Set to evaluation mode
-    agent = MCTSAgent(env, neural_network)
-    return agent
+    neural_network.load_state_dict(checkpoint['model_state_dict'])
+    neural_network.eval()
+
+    agent = MCTSAgent(env, neural_network=neural_network)
+
+    # Load MCTS parameters
+    agent.num_simulations = checkpoint['mcts_params']['num_simulations']
+    agent.c_puct = checkpoint['mcts_params']['c_puct']
+    agent.dirichlet_alpha = checkpoint['mcts_params']['dirichlet_alpha']
+    agent.epsilon = checkpoint['mcts_params']['epsilon']
+
+    current_epoch = checkpoint.get('current_epoch', None)
+
+    return agent, current_epoch
+

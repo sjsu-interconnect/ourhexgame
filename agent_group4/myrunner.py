@@ -8,47 +8,44 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from collections import deque
-# from gXXagent import GXXAgent
-# from gYYagent import GYYAgent
 from dqnAgent import load_dqn_agent
-from ourhexgame.agent_group4.g04agent import load_mcts_agent
+from mctsAgent import load_mcts_agent
 
 # -----------------------  ORIGINAL MY RUNNER IN WHICH TO RUN ----------------------- #
-env = OurHexGame(board_size=11, sparse_flag=False)
+env = OurHexGame(board_size=11)
 env.reset()
 
-# player 1
-# gXXagent = GXXAgent(env)
-# # player 2
-# gYYagent = GYYAgent(env) 
-
 dqnAgent = load_dqn_agent(env, "dqn_agent.pt")
-mctsAgent = load_mcts_agent(env, "g04agent.pt")
+mctsAgent = load_mcts_agent(env, "mcts_agent.pt")
 
 # smart_agent_player_id = random.choice(env.agents)
 
 done = False
+winner = None
+last_agent = None
+
 while not done:
     for agent in env.agent_iter():
         observation, reward, termination, truncation, info = env.last()
         
         if termination or truncation:
             if termination:
-                winner = agent  # Assign the winning agent
+                winner = last_agent  # Assign the winning agent
             done = True
             break
 
         
         if agent == 'player_2':
-            action = mctsAgent.select_action(observation, agent,reward, termination, truncation) # blue
+            action = mctsAgent.select_action(observation, reward, termination, truncation, info) # blue
         else:
             action = dqnAgent.select_action(observation, agent) # red
-            
 
         #reward, termination, truncation, info
 
         env.step(action)
         env.render()
+        
+        last_agent = agent
 
 
         # After taking the action, observe the next state
@@ -72,3 +69,13 @@ if winner:
 else:
     print("Game over. No winner was determined.")
 
+# -------------------------------
+# Keep the render window open until manually closed
+# -------------------------------
+running = True
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+env.close()
