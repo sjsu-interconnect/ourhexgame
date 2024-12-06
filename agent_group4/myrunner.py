@@ -9,14 +9,14 @@ import torch.nn as nn
 import torch.optim as optim
 from collections import deque
 from dqnAgent import load_dqn_agent
-from mctsAgent import load_mcts_agent
+from g04agent import load_mcts_agent
 
 # -----------------------  ORIGINAL MY RUNNER IN WHICH TO RUN ----------------------- #
 env = OurHexGame(board_size=11)
 env.reset()
 
 dqnAgent = load_dqn_agent(env, "dqn_agent.pt")
-mctsAgent = load_mcts_agent(env, "mcts_agent.pt")
+mctsAgent = load_mcts_agent(env, "g04agent.pt")
 
 # smart_agent_player_id = random.choice(env.agents)
 
